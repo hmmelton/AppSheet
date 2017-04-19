@@ -20,6 +20,9 @@ import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 /**
  * Created by harrison on 4/18/17.
@@ -33,10 +36,24 @@ public class AppSheetServiceHelper {
 
     /**
      * Constructor
-     * @param service instance of AppSheetService used to make calls to AppSheet web service.
      */
-    public AppSheetServiceHelper(AppSheetService service) {
-        mService = service;
+    public AppSheetServiceHelper() {
+        mService = setUpRetrofit();
+    }
+
+    /**
+     * This method sets up Retrofit and the AppSheet web service.
+     */
+    private AppSheetService setUpRetrofit() {
+        // Create Retrofit instance
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://appsheettest1.azurewebsites.net/sample/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .build();
+
+        // Use Retrofit instance to create instance of AppSheetService
+        return retrofit.create(AppSheetService.class);
     }
 
     /**
