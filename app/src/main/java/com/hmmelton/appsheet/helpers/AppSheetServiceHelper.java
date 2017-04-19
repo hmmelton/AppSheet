@@ -1,11 +1,18 @@
-package com.hmmelton.appsheet.models;
+package com.hmmelton.appsheet.helpers;
+
+import android.util.Log;
 
 import com.hmmelton.appsheet.interfaces.AppSheetService;
 import com.hmmelton.appsheet.interfaces.GetUserIdsCallback;
 import com.hmmelton.appsheet.interfaces.GetUsersCallback;
+import com.hmmelton.appsheet.models.User;
+import com.hmmelton.appsheet.models.UserList;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -83,7 +90,10 @@ public class AppSheetServiceHelper {
         });
     }
 
-    private void getUsers(List<Integer> ids, GetUsersCallback callback) {
+    private void getUsers(List<Integer> ids, final GetUsersCallback callback) {
+        final Map<Integer, User> sortedAgeUsers = new TreeMap<>();
+        // Create CountDownLatch to wait for all async threads to finish
+        final CountDownLatch latch = new CountDownLatch(ids.size());
         for (int id : ids) {
             // Fetch info on all users with ID's in list
             Call<User> request = mService.getUserDetail(id);
@@ -91,15 +101,43 @@ public class AppSheetServiceHelper {
                 @Override
                 public void onResponse(Call<User> call, Response<User> response) {
                     if (response != null && response.body() != null) {
-
+                        // Data was returned
+                        User user = response.body();
+                        if (validatePhoneNumber(user.getNumber())) {
+                            // Phone number is valid, so add to sorted map
+                            sortedAgeUsers.put(user.getAge(), user);
+                            // Notify latch that this thread has completed
+                            latch.countDown();
+                        }
                     }
                 }
 
                 @Override
                 public void onFailure(Call<User> call, Throwable t) {
-
+                    // Error fetching user data
+                    latch.countDown();
                 }
             });
         }
+        // Notify latch to wait until all threads are complete to execute next section of code
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Log.e("APSHelper", e.toString());
+        }
+        callback.onComplete(handleGetUsersResponse(sortedAgeUsers));
+    }
+
+    private List<User> handleGetUsersResponse(Map<Integer, User> sortedUsers) {
+
+    }
+
+    /**
+     * This method checks whether or not a phone number is valid according to US standards.
+     * @param number phone number to be checked
+     * @return boolean representing whether or not number is valid
+     */
+    private boolean validatePhoneNumber(String number) {
+        return number.matches("^(\\([0-9]{3}\\) ?|[0-9]{3}[- ]?)?[0-9]{3}-?[0-9]{4}$");
     }
 }
