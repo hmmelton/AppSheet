@@ -64,7 +64,7 @@ public class AppSheetServiceHelper {
         getUserIds(new ArrayList<>(), null, userIds -> {
             if (userIds != null) {
                 // Data was returned
-                getUsers(userIds, callback);
+                getUsers(userIds, users -> callback.onComplete(handleGetUsersResponse(users)));
             } else {
                 // Response was null
                 callback.onComplete(null);
@@ -146,7 +146,7 @@ public class AppSheetServiceHelper {
                     public void onComplete() {
                         // All threads have finished running
                         // Sort top 5 users by age and return to calling method
-                        callback.onComplete(handleGetUsersResponse(sortedAgeUsers));
+                        callback.onComplete(new ArrayList<>(sortedAgeUsers.values()));
                     }
                 });
     }
@@ -156,19 +156,9 @@ public class AppSheetServiceHelper {
      * @param sortedAgeUsers List of Users, sorted by age
      * @return List of top 5 Users from input list, sorted by name
      */
-    private List<User> handleGetUsersResponse(Map<Integer, User> sortedAgeUsers) {
-        List<User> result = new ArrayList<>();
-        // New map to sort users by name
-        int index = 5;
-        for (Map.Entry<Integer, User> entry : sortedAgeUsers.entrySet()) {
-            if (index <= 0) {
-                // All desired Users have been added to list
-                break;
-            }
-            // Add element to result list
-            result.add(entry.getValue());
-            index--;
-        }
+    private List<User> handleGetUsersResponse(List<User> sortedAgeUsers) {
+        // Create list from first 5 values or age-sorted list
+        List<User> result = sortedAgeUsers.subList(0, 5);
         // Sort and return values
         Collections.sort(result, (o1, o2) -> o1.getName().compareTo(o2.getName()));
         return result;
@@ -180,6 +170,6 @@ public class AppSheetServiceHelper {
      * @return boolean representing whether or not number is valid
      */
     private boolean validatePhoneNumber(String number) {
-        return number.matches("^(\\([0-9]{3}\\) ?|[0-9]{3}[- ]?)?[0-9]{3}-?[0-9]{4}$");
+        return number.matches("^(\\([0-9]{3}\\) ?|[0-9]{3}[- ]?)?[0-9]{3}[- ]?[0-9]{4}$");
     }
 }
