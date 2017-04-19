@@ -1,5 +1,7 @@
 package com.hmmelton.appsheet.models;
 
+import com.google.gson.annotations.SerializedName;
+
 /**
  * Created by harrison on 4/18/17.
  * This model holds the data of an individual AppSheet user.
@@ -7,8 +9,14 @@ package com.hmmelton.appsheet.models;
 
 public class User {
 
-    private int mId, mAge;
-    private String mName, mNumber;
+    @SerializedName("id")
+    int mId;
+    @SerializedName("age")
+    int mAge;
+    @SerializedName("name")
+    String mName;
+    @SerializedName("number")
+    String mNumber;
 
     /**
      * Generic constructor
