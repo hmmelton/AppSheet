@@ -11,10 +11,12 @@ import java.util.List;
 
 public class UserList {
 
+    // List of user ID's
     @SerializedName("result")
-    private List<Integer> mList; // List of user ID's
+    private List<Integer> mList;
+    // Token used to retrieve more user ID's, if any more exist
     @SerializedName("token")
-    private String mToken; // Token used to retrieve more user ID's, if any more exist
+    private String mToken;
 
     /**
      * Generic constructor
