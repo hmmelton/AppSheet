@@ -1,7 +1,5 @@
 package com.hmmelton.appsheet.helpers;
 
-import android.util.Log;
-
 import com.hmmelton.appsheet.interfaces.AppSheetService;
 import com.hmmelton.appsheet.interfaces.GetUserIdsCallback;
 import com.hmmelton.appsheet.interfaces.GetUsersCallback;
@@ -9,11 +7,16 @@ import com.hmmelton.appsheet.models.User;
 import com.hmmelton.appsheet.models.UserList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.CountDownLatch;
 
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -41,16 +44,13 @@ public class AppSheetServiceHelper {
      * @param callback callback used to return data
      */
     public void getYoungestPhoneUsers(final GetUsersCallback callback) {
-        getUserIds(new ArrayList<Integer>(), null, new GetUserIdsCallback() {
-            @Override
-            public void onComplete(List<Integer> userIds) {
-                if (userIds != null) {
-                    // Data was returned
-                    getUsers(userIds, callback);
-                } else {
-                    // Response was null
-                    callback.onComplete(null);
-                }
+        getUserIds(new ArrayList<>(), null, userIds -> {
+            if (userIds != null) {
+                // Data was returned
+                getUsers(userIds, callback);
+            } else {
+                // Response was null
+                callback.onComplete(null);
             }
         });
     }
@@ -90,46 +90,71 @@ public class AppSheetServiceHelper {
         });
     }
 
+    /**
+     * This method fetches users from the AppSheet sample web service.
+     * @param ids List of ID's of users to fetch
+     * @param callback Callback used to return data
+     */
     private void getUsers(List<Integer> ids, final GetUsersCallback callback) {
+        // Create tree map to automatically sort users by age
         final Map<Integer, User> sortedAgeUsers = new TreeMap<>();
-        // Create CountDownLatch to wait for all async threads to finish
-        final CountDownLatch latch = new CountDownLatch(ids.size());
+        // Create list of Observables to run concurrently
+        List<Observable<User>> observables = new ArrayList<>();
         for (int id : ids) {
-            // Fetch info on all users with ID's in list
-            Call<User> request = mService.getUserDetail(id);
-            request.enqueue(new Callback<User>() {
-                @Override
-                public void onResponse(Call<User> call, Response<User> response) {
-                    if (response != null && response.body() != null) {
-                        // Data was returned
-                        User user = response.body();
-                        if (validatePhoneNumber(user.getNumber())) {
-                            // Phone number is valid, so add to sorted map
-                            sortedAgeUsers.put(user.getAge(), user);
-                            // Notify latch that this thread has completed
-                            latch.countDown();
+            observables.add(mService.getUserDetail(id)
+                    .subscribeOn(Schedulers.newThread())
+                    .observeOn(AndroidSchedulers.mainThread()));
+        }
+        // Combine Observables and run concurrently
+        Observable.concat(observables)
+                .subscribe(new Observer<User>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {}
+
+                    @Override
+                    public void onNext(User value) {
+                        // One of the threads has finished -- add value to list
+                        if (validatePhoneNumber(value.getNumber())) {
+                            // Phone number is valid, so add user to list
+                            sortedAgeUsers.put(value.getAge(), value);
                         }
                     }
-                }
 
-                @Override
-                public void onFailure(Call<User> call, Throwable t) {
-                    // Error fetching user data
-                    latch.countDown();
-                }
-            });
-        }
-        // Notify latch to wait until all threads are complete to execute next section of code
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Log.e("APSHelper", e.toString());
-        }
-        callback.onComplete(handleGetUsersResponse(sortedAgeUsers));
+                    @Override
+                    public void onError(Throwable e) {
+                        e.printStackTrace();
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        // All threads have finished running
+                        // Sort top 5 users by age and return to calling method
+                        callback.onComplete(handleGetUsersResponse(sortedAgeUsers));
+                    }
+                });
     }
 
-    private List<User> handleGetUsersResponse(Map<Integer, User> sortedUsers) {
-
+    /**
+     * This method takes the top 5 users and sorts them by name.
+     * @param sortedAgeUsers List of Users, sorted by age
+     * @return List of top 5 Users from input list, sorted by name
+     */
+    private List<User> handleGetUsersResponse(Map<Integer, User> sortedAgeUsers) {
+        List<User> result = new ArrayList<>();
+        // New map to sort users by name
+        int index = 5;
+        for (Map.Entry<Integer, User> entry : sortedAgeUsers.entrySet()) {
+            if (index <= 0) {
+                // All desired Users have been added to list
+                break;
+            }
+            // Add element to result list
+            result.add(entry.getValue());
+            index--;
+        }
+        // Sort and return values
+        Collections.sort(result, (o1, o2) -> o1.getName().compareTo(o2.getName()));
+        return result;
     }
 
     /**

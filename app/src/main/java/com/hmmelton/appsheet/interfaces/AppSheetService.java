@@ -3,6 +3,7 @@ package com.hmmelton.appsheet.interfaces;
 import com.hmmelton.appsheet.models.User;
 import com.hmmelton.appsheet.models.UserList;
 
+import io.reactivex.Observable;
 import retrofit2.Call;
 import retrofit2.http.GET;
 import retrofit2.http.Path;
@@ -29,5 +30,5 @@ public interface AppSheetService {
      * @return Retrofit Call that returns User object
      */
     @GET("detail/{user_id}")
-    Call<User> getUserDetail(@Path("user_id") int userId);
+    Observable<User> getUserDetail(@Path("user_id") int userId);
 }
