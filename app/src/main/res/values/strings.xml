@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AppSheet</string>
+    <string name="error_pulling_user_data">Could not fetch users</string>
 </resources>
