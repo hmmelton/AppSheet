@@ -67,6 +67,17 @@ public class UserInfoAdapter extends RecyclerView.Adapter<UserInfoAdapter.ViewHo
     }
 
     /**
+     * This method removes all Users from the adapter.
+     */
+    public void clear() {
+        // Get size of list before items are removed
+        int listSize = mUsers.size();
+        // Remove all items
+        mUsers.clear();
+        notifyItemRangeRemoved(0, listSize);
+    }
+
+    /**
      * This is a view holder class for each cell in the RecyclerView associated with the enclosing
      * RecyclerView adapter.
      */
