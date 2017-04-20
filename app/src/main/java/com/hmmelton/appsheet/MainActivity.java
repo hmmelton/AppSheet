@@ -1,11 +1,14 @@
 package com.hmmelton.appsheet;
 
 import android.os.Bundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -19,7 +22,6 @@ import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String TAG = getClass().getSimpleName();
 
     // RecyclerView of users
     @BindView(R.id.rv_main_activity)
@@ -30,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
 
     // Adapter for Activity's RecyclerView
     private UserInfoAdapter mAdapter;
+    // Root SwipeRefreshLayout
+    private SwipeRefreshLayout mRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         ButterKnife.bind(this);
 
         setUpRecyclerView();
+        setUpSwipeRefreshLayout();
         // Display progress bar
         mProgressBar.setVisibility(View.VISIBLE);
         getUsers();
@@ -47,11 +52,16 @@ public class MainActivity extends AppCompatActivity {
      * This method fetches the users needed to populate the layout's RecyclerView.
      */
     private void getUsers() {
-        Log.e(TAG, "getUsers");
         AppSheetServiceHelper serviceHelper = new AppSheetServiceHelper();
-        Log.e(TAG, "service helper created");
         serviceHelper.getYoungestPhoneUsers(users -> {
-            mProgressBar.setVisibility(View.GONE);
+            if (mProgressBar.getVisibility() == View.VISIBLE) {
+                // Hide progress bar, if visible
+                mProgressBar.setVisibility(View.GONE);
+            }
+            if (mRefreshLayout.isRefreshing()) {
+                // Remove refresh icon
+                mRefreshLayout.setRefreshing(false);
+            }
             if (users == null) {
                 // Let user know there was no data
                 Toast.makeText(MainActivity.this, R.string.error_pulling_user_data,
@@ -64,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * This method sets up the Activity's RecyclerView
+     * This method sets up the Activity's RecyclerView.
      */
     private void setUpRecyclerView() {
         // Set RecyclerView's LinearLayoutManager
@@ -72,5 +82,21 @@ public class MainActivity extends AppCompatActivity {
         // Set RecyclerView's adapter, passing it an empty List on initialization
         mAdapter = new UserInfoAdapter(new ArrayList<>());
         mRecyclerView.setAdapter(mAdapter);
+        // Add divider separator
+        RecyclerView.ItemDecoration decoration =
+                new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+        mRecyclerView.addItemDecoration(decoration);
+    }
+
+    /**
+     * This method sets up the Activity's SwipeRefreshLayout.
+     */
+    private void setUpSwipeRefreshLayout() {
+        mRefreshLayout = (SwipeRefreshLayout)
+                ((ViewGroup) findViewById(android.R.id.content)).getChildAt(0);
+        mRefreshLayout.setOnRefreshListener(() -> {
+            mAdapter.clear();
+            getUsers();
+        });
     }
 }
